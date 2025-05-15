@@ -30,7 +30,7 @@ import type {Result} from '../utils/result.js';
 
 import {BidiNoOpParser} from './BidiNoOpParser.js';
 import type {BidiCommandParameterParser} from './BidiParser.js';
-import type {MapperOptions} from './BidiServer.js';
+import type {MapperOptions, MapperOptionsStorage} from './MapperOptions.js';
 import type {BluetoothProcessor} from './modules/bluetooth/BluetoothProcessor.js';
 import {BrowserProcessor} from './modules/browser/BrowserProcessor.js';
 import type {UserContextStorage} from './modules/browser/UserContextStorage.js';
@@ -89,6 +89,7 @@ export class CommandProcessor extends EventEmitter<CommandProcessorEventsMap> {
     realmStorage: RealmStorage,
     preloadScriptStorage: PreloadScriptStorage,
     networkStorage: NetworkStorage,
+    mapperOptionsStorage: MapperOptionsStorage,
     bluetoothProcessor: BluetoothProcessor,
     userContextStorage: UserContextStorage,
     parser: BidiCommandParameterParser = new BidiNoOpParser(),
@@ -105,6 +106,7 @@ export class CommandProcessor extends EventEmitter<CommandProcessorEventsMap> {
     this.#browserProcessor = new BrowserProcessor(
       browserCdpClient,
       browsingContextStorage,
+      mapperOptionsStorage,
       userContextStorage,
     );
     this.#browsingContextProcessor = new BrowsingContextProcessor(
@@ -216,14 +218,16 @@ export class CommandProcessor extends EventEmitter<CommandProcessorEventsMap> {
       case 'browser.close':
         return this.#browserProcessor.close();
       case 'browser.createUserContext':
-        return await this.#browserProcessor.createUserContext(command.params);
+        return await this.#browserProcessor.createUserContext(
+          this.#parser.parseCreateUserContextParameters(command.params),
+        );
       case 'browser.getClientWindows':
         return await this.#browserProcessor.getClientWindows();
       case 'browser.getUserContexts':
         return await this.#browserProcessor.getUserContexts();
       case 'browser.removeUserContext':
         return await this.#browserProcessor.removeUserContext(
-          this.#parser.parseRemoveUserContextParams(command.params),
+          this.#parser.parseRemoveUserContextParameters(command.params),
         );
       case 'browser.setClientWindowState':
         throw new UnknownErrorException(
